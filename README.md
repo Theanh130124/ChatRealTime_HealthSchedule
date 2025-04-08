@@ -48,3 +48,18 @@ npm install express cors
 
 
 Vao trong project setting trong firebase
+
+bên service accounts chọn Node js
+
+-Tải mã json về 
+
+```text
+var admin = require("firebase-admin");
+
+var serviceAccount = require("path/to/serviceAccountKey.json");
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
+
+```
