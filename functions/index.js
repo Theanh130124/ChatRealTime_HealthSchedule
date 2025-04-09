@@ -34,7 +34,7 @@ app.post('/chats', async (req, res) => {
                     [userId1]: true,
                     [userId2]: true,
                 },
-                messages: {}
+                
             });
             const docRef = await chatRef.get()
             return res.status(201).send({ chatId : docRef.id ,
@@ -53,10 +53,29 @@ app.post('/chats', async (req, res) => {
 // API endpoint để lấy tất cả tin nhắn trong một cuộc trò chuyện (có thể phân trang)
 app.get('/chats/:chatId/messages', async (req, res) => {
     try {
+        //Truyền vào header
+        const userId = req.headers['userid'];
+
+
         const { chatId } = req.params;
         //chats/abc123/messages?limit=20&orderBy=timestamp&orderDirection=desc&startAfter=msg456
         //startAfter=msg456 phân trang firebase
         const { limit = 50, orderBy = 'timestamp', orderDirection = 'asc', startAfter } = req.query;
+
+     
+        if(!userId){
+            return res.status(400).send({error : "Thiếu userId"})
+        }
+        //permission
+        const chatRef = db.collection("chats").doc(chatId);
+        const chatDoc = await chatRef.get()
+        if(!chatDoc.exists){
+            return res.status(404).send({error:"Phòng chat không tồn tại"})
+        }
+        const participants = chatDoc.data().participants || {};
+        if(!participants[userId]){
+            return res.status(403).send({error:'Bạn không thuộc đoạn chat này'})
+        }
 
         const messagesRef = db.collection('chats').doc(chatId).collection('messages');
         let query = messagesRef.orderBy(orderBy, orderDirection).limit(parseInt(limit));
@@ -106,10 +125,23 @@ app.get('/chats/:chatId/participants', async (req, res) => {
 app.post('/chats/:chatId/messages' , async (req ,res) => {
     try{
         const {chatId} = req.params;
+        //Không cần truyền senderId vào header -> check body
         const {senderId , text , imageUrl} = req.body;
 
         if (!senderId || !text){
             return res.status(400).send({error :'Thiếu senderId hoặc text'})
+        }
+
+//permisstion
+
+        const chatRef = db.collection('chats').doc(chatId);
+        const chatDoc = await chatRef.get();
+        if(!chatDoc.exists){
+            return res.status(404).send({error : 'Phòng chat không tồn tại'})
+        }
+        const participants = chatDoc.data().participants || {};
+        if(!participants[senderId]){
+            return res.status(403).send({error:'Bạn không thuộc đoạn chat này'})
         }
         const messagesRef = db.collection('chats').doc(chatId).collection('messages')
         const newMessage = {
